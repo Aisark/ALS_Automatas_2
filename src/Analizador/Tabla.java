@@ -22,6 +22,10 @@ public class Tabla {
         return DataType.containsKey(key);
     }
     
+    public String gDataType(String k){
+        return DataType.get(k);
+    }
+    
     public void setColum(String colum,String type){
         DataType.put(colum,type);
         Type.add(type);
