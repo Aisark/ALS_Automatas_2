@@ -172,7 +172,7 @@
   <SubComponents>
     <Component class="javax.swing.JButton" name="btnLexico">
       <Properties>
-        <Property name="text" type="java.lang.String" value="Analizar Lexico"/>
+        <Property name="text" type="java.lang.String" value="Analizador Lexico,Sintactico y Semantico"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnLexicoActionPerformed"/>

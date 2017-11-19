@@ -3,10 +3,8 @@ package Analizador;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import java.util.regex.*;
-import Analizador.Tabla;
 import java.util.Hashtable;
-import sun.security.timestamp.TimestampToken;
-import java.util.Date;
+import java.util.ArrayList;
 /**
  *
  * @author aisark ultima actualizacion 06-12-2016 01:16 am
@@ -43,9 +41,9 @@ public class Interfaz extends javax.swing.JFrame {
     
     Hashtable<String, Tabla> tablas = new Hashtable<>();
     String nTable = "";
-    
-    
-    
+    ArrayList<String> colTable = new ArrayList<>();
+    boolean aTable = false;
+    boolean allInd = false;
     
     @SuppressWarnings("OverridableMethodCallInConstructor")
     public Interfaz() {
@@ -96,7 +94,7 @@ public class Interfaz extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        btnLexico.setText("Analizar Lexico");
+        btnLexico.setText("Analizador Lexico,Sintactico y Semantico");
         btnLexico.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnLexicoActionPerformed(evt);
@@ -971,7 +969,7 @@ public class Interfaz extends javax.swing.JFrame {
         }else if(isLiteral(token0)){
             if(!token1.equalsIgnoreCase("values")){
                 error.addRow(new Object[]{token1,"Se esperaba VALUES",linea,numtoken});
-            }else{ // A.S.
+            }else{ // A.Se.
                 if(tablas.containsKey(token0)){
                     nTable = token0;
                 }else{
@@ -987,9 +985,17 @@ public class Interfaz extends javax.swing.JFrame {
             if(!token1.equals(";")){
                 error.addRow(new Object[]{token1,"Se esperaba ;",linea,numtoken}); 
             }else{
-                if((tablas.get(nTable).index+1)<tablas.get(nTable).gsType()){
-                    error.addRow(new Object[]{token0,"E.Se.: Faltan datos en la insercción ",linea,Integer.valueOf(numtoken)-1});
+                if(!nTable.equals("")){
+                    try {
+                        if((tablas.get(nTable).index)<tablas.get(nTable).gsType()){
+                            error.addRow(new Object[]{au_token,"E.Se.: Faltan datos en la insercción ",linea,Integer.valueOf(numtoken)-1});
+                        }
+                    } catch (IndexOutOfBoundsException e) {
+                        error.addRow(new Object[]{au_token,"E.Se.: Desbordamiento de parametros",linea,Integer.valueOf(numtoken)-2});
+                    }
+                    
                 }
+                
             }
             
         }else if(token0.equalsIgnoreCase("values")&&!token1.equals("(")){
@@ -998,11 +1004,18 @@ public class Interfaz extends javax.swing.JFrame {
             if ((au_token.equals("(")||au_token.equals(","))&&!token1.equals(")")&&!token1.equals(",")){
                 error.addRow(new Object[]{token1,"Se esperaba   ) | ,",linea,numtoken});
             }else{
-                String extd = tablas.get(nTable).gType(tablas.get(nTable).index);
-                if(isCorrecType(token0, extd)){
-                    tablas.get(nTable).upind();
-                }else{
-                    error.addRow(new Object[]{token0,"E.Se: Se esperaba un dato de tipo "+extd,linea,Integer.valueOf(numtoken)-1});
+                try {
+                    if(!nTable.equals("")){
+                        String extd = tablas.get(nTable).gType(tablas.get(nTable).index);
+                        if(isCorrecType(token0, extd)){
+                            tablas.get(nTable).upind();
+                        }else{
+                            tablas.get(nTable).upind();
+                            error.addRow(new Object[]{token0,"E.Se: Se esperaba un dato de tipo "+extd,linea,Integer.valueOf(numtoken)-1});
+                        }
+                    }
+                } catch (Exception e) {
+                    error.addRow(new Object[]{token0,"E.Se.: Desbordamiento de parametros",linea,Integer.valueOf(numtoken)-1});
                 }
             }
         }
@@ -1013,6 +1026,7 @@ public class Interfaz extends javax.swing.JFrame {
             selectClause(token0,token1,linea,numtoken,au_token,error);
         }else if(token0.equalsIgnoreCase(";")){
             finSent(token0, token1, linea, numtoken, au_token, error);
+            clTable();
             selClau=false;
         }else{
             selectClause(token0,token1,linea,numtoken,au_token,error);
@@ -1024,36 +1038,94 @@ public class Interfaz extends javax.swing.JFrame {
             if(!token1.equals("*")&&!isLiteral(token1)&&!token1.equalsIgnoreCase("all")&&!token1.equalsIgnoreCase("distinct")){
                 error.addRow(new Object[]{token1,"Se esperaba IDENTIFICADOR",linea,numtoken});
             }
+            aTable = isLiteral(token1);
+            allInd = token1.equals("*");
         }else if(token0.equals("*")&&!token1.equalsIgnoreCase("from")&&!token1.equals("/*")&&!token1.equals("//")){
             error.addRow(new Object[]{token1,"Se esperaba FROM",linea,numtoken});
         }else if(token0.equalsIgnoreCase("distinct")&&!isLiteral(token1)){
             error.addRow(new Object[]{token1,"Se esperaba LITERAL",linea,numtoken});
         }else if(isLiteral(token0)){
-            if(au_token.equalsIgnoreCase("select")&&!token1.equalsIgnoreCase("from")&&!token1.equals(",")){
-                error.addRow(new Object[]{token1,"Se esperaba  FROM | ,",linea,numtoken});
-            }else if((au_token.equalsIgnoreCase("where")||isOperLogic(au_token))&&!isOperRela(token1)){
-                error.addRow(new Object[]{token1,"Se esperaba  OPERADOR RELACIONAL",linea,numtoken}); 
-            }else if(au_token.equalsIgnoreCase("from")&&!token0.equals(";")&&!token1.equalsIgnoreCase("order")&&!token1.equalsIgnoreCase("where")&&!token1.equalsIgnoreCase("group")){
-                error.addRow(new Object[]{token1,"Se esperaba  ;",linea,numtoken});
-            }else if(au_token.equalsIgnoreCase("having")&&!token1.equals(",")&&!token1.equals(";")){
-                error.addRow(new Object[]{token1,"Se esperaba  ;",linea,numtoken});
+            if(au_token.equalsIgnoreCase("select")){
+                if(!token1.equalsIgnoreCase("from")&&!token1.equals(",")){
+                    error.addRow(new Object[]{token1,"Se esperaba  FROM | ,",linea,numtoken});
+                }
+                
+            }else if((au_token.equalsIgnoreCase("where")||isOperLogic(au_token))){
+                if(!isOperRela(token1)){
+                    error.addRow(new Object[]{token1,"Se esperaba  OPERADOR RELACIONAL",linea,numtoken}); 
+                }else{ // A.Se.
+                    existColum(token0, linea, error);
+                }
+                
+            }else if(au_token.equalsIgnoreCase("from")){
+                if(!token1.equals(";")&&!token1.equalsIgnoreCase("order")&&!token1.equalsIgnoreCase("where")&&!token1.equalsIgnoreCase("group")){
+                    error.addRow(new Object[]{token1,"Se esperaba  ;",linea,numtoken});
+                }else{ //A.Se.
+                    if(tablas.containsKey(token0)){
+                        nTable = token0;
+                        if(!allInd){
+                            System.out.println(colTable);
+                            for (int i = 0; i < colTable.size(); i++) {
+                                if(!tablas.get(nTable).existKey(colTable.get(i))){
+                                    error.addRow(new Object[]{colTable.get(i),"E.Se.: No existe la columna "+colTable.get(i)+" en la tabla "+nTable,linea,""});
+                                }
+                            }
+                        }
+                        
+                    }else{
+                        error.addRow(new Object[]{token0,"E.Se.: No existe la tabla "+token0,linea,Integer.valueOf(numtoken)-1});
+                    }
+                }
+                
+            }else if(au_token.equalsIgnoreCase("having")){
+                if(!token1.equals(",")&&!token1.equals(";")){
+                    error.addRow(new Object[]{token1,"Se esperaba  ;",linea,numtoken});
+                }else{
+                    existColum(token0, linea, error);
+                }
+                
             }else if(au_token.equalsIgnoreCase("by")){
-                if(String.valueOf(tblTabla_sintax.getValueAt(Integer.valueOf(numtoken)-4, 0)).equalsIgnoreCase("group")&&!token1.equals(";")&&!token1.equalsIgnoreCase("having")){
-                    error.addRow(new Object[]{token1,"Se esperaba  ;",linea,numtoken});
-                }else if(String.valueOf(tblTabla_sintax.getValueAt(Integer.valueOf(numtoken)-4, 0)).equalsIgnoreCase("order")&&!token1.equals(";")&&!token1.equalsIgnoreCase(",")){
-                    error.addRow(new Object[]{token1,"Se esperaba  ;",linea,numtoken});
+                if(String.valueOf(tblTabla_sintax.getValueAt(Integer.valueOf(numtoken)-4, 0)).equalsIgnoreCase("group")){
+                    if(!token1.equals(";")&&!token1.equalsIgnoreCase("having")){
+                        error.addRow(new Object[]{token1,"Se esperaba  ;",linea,numtoken});
+                    }else{
+                        existColum(token0, linea, error);
+                    }
+                    
+                }else if(String.valueOf(tblTabla_sintax.getValueAt(Integer.valueOf(numtoken)-4, 0)).equalsIgnoreCase("order")){
+                    if(!token1.equals(";")&&!token1.equalsIgnoreCase(",")){
+                        error.addRow(new Object[]{token1,"Se esperaba  ;",linea,numtoken});
+                    }else{
+                        existColum(token0, linea, error);
+                    }
+                    
                 }
             }
+            if(aTable){
+                colTable.add(token0);
+            }
             
-        }else if((token0.equals(",")||token0.equalsIgnoreCase("from")||token0.equalsIgnoreCase("having")||token0.equalsIgnoreCase("by")||token0.equalsIgnoreCase("where"))&&!isLiteral(token1)){
-            error.addRow(new Object[]{token1,"Se esperaba  LITERAL",linea,numtoken});
+        }else if((token0.equals(",")||token0.equalsIgnoreCase("from")||token0.equalsIgnoreCase("having")||token0.equalsIgnoreCase("by")||token0.equalsIgnoreCase("where"))){            
+            if(!isLiteral(token1)){
+                error.addRow(new Object[]{token1,"Se esperaba  LITERAL",linea,numtoken});
+            }else{
+                aTable = !token0.equalsIgnoreCase("from");
+            }
+            
         }else if((token0.equalsIgnoreCase("group")||token0.equalsIgnoreCase("order"))&&!token1.equalsIgnoreCase("by")){
             error.addRow(new Object[]{token1,"Se esperaba  BY",linea,numtoken});
-        }else if(isLiteral(au_token)&&isOperRela(token0)){
+        }else if(isLiteral(au_token)&&isOperRela(token0)){//++++++++++++++++++++++++++++++++++++++++ aqui me quede
             if((token0.equals("<>")||token0.equals("="))&&!isCadena(token1)&&!isNumeric(token1)){
                 error.addRow(new Object[]{token1,"Se esperaba un VALOR",linea,numtoken});
             }else if((token0.equals("<=")||token0.equals(">=")||token0.equals(">")||token0.equals(">"))&&!isNumeric(token1)){
                 error.addRow(new Object[]{token1,"Se esperaba un VALOR NUMERICO",linea,numtoken});
+            }
+            if(!nTable.equals("")){
+                if(tablas.get(nTable).existKey(au_token)){// A.Se
+                    if(!isCorrecType(token1, tablas.get(nTable).gDataType(au_token))){
+                        error.addRow(new Object[]{token1,"E.Se: Tipo de dato incompatible con "+tablas.get(nTable).gDataType(au_token),linea,numtoken});
+                    }
+                }
             }
         }else if(isNumeric(token0)||isCadena(token0)){
             if(!token1.equals(";")&&!isOperLogic(token1)){
@@ -1068,7 +1140,8 @@ public class Interfaz extends javax.swing.JFrame {
             delClau=true;
             deleteClause(token0,token1,linea,numtoken,au_token,error);
         }else if(token0.equalsIgnoreCase(";")){
-             finSent(token0, token1, linea, numtoken, au_token, error);
+            finSent(token0, token1, linea, numtoken, au_token, error);
+            clTable();
             delClau=false;
         }else{
             deleteClause(token0,token1,linea,numtoken,au_token,error);
@@ -1080,10 +1153,23 @@ public class Interfaz extends javax.swing.JFrame {
         }else if(token0.equalsIgnoreCase("from")&&!isLiteral(token1)){
             error.addRow(new Object[]{token1,"Se esperaba LITERAL",linea,numtoken});
         }else if(isLiteral(token0)){
-            if(au_token.equalsIgnoreCase("from")&&!token1.equals(";")&&!token1.equalsIgnoreCase("where")){
-                error.addRow(new Object[]{token1,"Se esperaba  ; | where",linea,numtoken}); 
-            }else if((au_token.equalsIgnoreCase("where")||isOperLogic(au_token))&&!isOperRela(token1)){
-                error.addRow(new Object[]{token1,"Se esperaba  OPERADOR RELACIONAL",linea,numtoken}); 
+            if(au_token.equalsIgnoreCase("from")){
+                if(!token1.equals(";")&&!token1.equalsIgnoreCase("where")){
+                    error.addRow(new Object[]{token1,"Se esperaba  ; | where",linea,numtoken}); 
+                }else{
+                    if(tablas.containsKey(token0)){
+                        nTable = token0;
+                    }else{
+                        error.addRow(new Object[]{token0,"E.Se.: No existe la tabla "+token0,linea,Integer.valueOf(numtoken)-1});
+                    }
+                }
+                
+            }else if((au_token.equalsIgnoreCase("where")||isOperLogic(au_token))){
+                if(!isOperRela(token1)){
+                    error.addRow(new Object[]{token1,"Se esperaba  OPERADOR RELACIONAL",linea,numtoken});
+                }else{
+                    existColum(token0, linea, error);
+                }
             }
             
         }else if(token0.equalsIgnoreCase("where")&&!isLiteral(token1)){
@@ -1093,6 +1179,13 @@ public class Interfaz extends javax.swing.JFrame {
                 error.addRow(new Object[]{token1,"Se esperaba un VALOR",linea,numtoken});
             }else if((token0.equals("<=")||token0.equals(">=")||token0.equals(">")||token0.equals(">"))&&!isNumeric(token1)){
                 error.addRow(new Object[]{token1,"Se esperaba un VALOR NUMERICO",linea,numtoken});
+            }
+            if(!nTable.equals("")){
+                if(tablas.get(nTable).existKey(au_token)){// A.Se
+                    if(!isCorrecType(token1, tablas.get(nTable).gDataType(au_token))){
+                        error.addRow(new Object[]{token1,"E.Se: Tipo de dato incompatible con "+tablas.get(nTable).gDataType(au_token),linea,numtoken});
+                    }
+                }
             }
         }else if(isNumeric(token0)||isCadena(token0)){
             if(!token1.equals(";")&&!isOperLogic(token1)&&!token1.equals("/*")&&!token1.equals("//")){
@@ -1139,9 +1232,20 @@ public class Interfaz extends javax.swing.JFrame {
         return flag;
     }
     public void clTable(){
-        tablas.get(nTable).index = 0;
+        if(!tablas.isEmpty()&&!nTable.equals(""))tablas.get(nTable).index = 0;
         nTable = "";
+        aTable = false;
+        allInd = false;
+        if(!colTable.isEmpty())colTable.clear();
     }
+    public void existColum(String token0,String linea,DefaultTableModel error){
+        if(!nTable.equals("")){
+            if(!tablas.get(nTable).existKey(token0)){
+                error.addRow(new Object[]{token0,"E.Se.: No existe la columna "+token0+" en la tabla "+nTable,linea,""});
+            }
+        }
+    }
+    
     
     private void btnLexicoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLexicoActionPerformed
         // TODO add your handling code here:
@@ -1154,14 +1258,13 @@ public class Interfaz extends javax.swing.JFrame {
         
         if(!txaEditor.getText().isEmpty()){
             tablas.clear();
-            nTable = "";
+            clTable();
             au_b=false;au_s="";au_c="";
             num_token = 1;num_var=1;num_numer=1;
             clearModel(modelo, error,variden,varnum);
             newTexto();
             tokenizador(modelo, error,variden,varnum);
             superAnliSin(error);
-            
         }else{
             JOptionPane.showMessageDialog(rootPane,"Campos Vacios","Error",JOptionPane.ERROR_MESSAGE);
         }
