@@ -30,4 +30,12 @@ public class Tabla {
     public void upind(){
         index++;
     }
+    
+    public String gType (int ind){
+        return Type.get(ind);
+    }
+    
+    public int gsType(){
+        return Type.size();
+    }
 }
