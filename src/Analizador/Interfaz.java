@@ -5,6 +5,8 @@ import javax.swing.table.DefaultTableModel;
 import java.util.regex.*;
 import Analizador.Tabla;
 import java.util.Hashtable;
+import sun.security.timestamp.TimestampToken;
+import java.util.Date;
 /**
  *
  * @author aisark ultima actualizacion 06-12-2016 01:16 am
@@ -28,7 +30,9 @@ public class Interfaz extends javax.swing.JFrame {
     String [] lineas_text;
     
     String xr_string="^\".*\"$",
-           xr_literal="^[a-zA-Z]\\w*$";
+           xr_literal="^[a-zA-Z]\\w*$",
+            xr_fecha = "\\d{1,2}/\\d{1,2}/\\d{4}",
+            xr_fecha2 = "\\d{1,2}/(?i)(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)/\\d{4}";
     
     String au_s="",au_c="",au_comen="",lin_com="",auxau="",auxlin="",auxnt="";
     
@@ -513,6 +517,16 @@ public class Interfaz extends javax.swing.JFrame {
         
         return flag;
     }
+    public boolean isDate(String token){
+        expresion_regular= Pattern.compile(xr_fecha);
+        mat = expresion_regular.matcher(token);
+        return mat.matches();
+    }
+    public boolean isDate2(String token){
+        expresion_regular= Pattern.compile(xr_fecha2);
+        mat = expresion_regular.matcher(token);
+        return mat.matches();
+    }
 
     
     public int getDirTipoDato(String token){
@@ -886,6 +900,7 @@ public class Interfaz extends javax.swing.JFrame {
         }else if(token0.equalsIgnoreCase(";")){
             finSent(token0, token1, linea, numtoken, au_token, error);
             crClau=false;
+            nTable = "";
         }else{
             createClause(token0,token1,linea,numtoken,au_token,error);
         }
@@ -897,13 +912,24 @@ public class Interfaz extends javax.swing.JFrame {
         }else if(token0.equalsIgnoreCase("table")&&!isLiteral(token1)){
             error.addRow(new Object[]{token1,"Se esperaba LITERAL",linea,numtoken});
         }else if(isLiteral(token0)){
-            if(au_token.equalsIgnoreCase("table")&&!token1.equals("(")&&!token1.equals(";")){
-                tablas.put(token0, new Tabla());// AS
-                nTable = token0;
+            if(au_token.equalsIgnoreCase("table")){
+                if(!token1.equals("(")&&!token1.equals(";")){
+                   error.addRow(new Object[]{token1,"Se esperaba ( | ;",linea,numtoken}); 
+                }else{
+                    tablas.put(token0, new Tabla());// A.S.
+                    nTable = token0;
+                }
                 
-                error.addRow(new Object[]{token1,"Se esperaba ( | ;",linea,numtoken});
-            }else if((au_token.equals("(")||au_token.equals(","))&&!istipoDato(token1)){
-                error.addRow(new Object[]{token1,"Se esperaba TIPO DE DATO",linea,numtoken});
+            }else if((au_token.equals("(")||au_token.equals(","))){
+                if(!istipoDato(token1)){
+                    error.addRow(new Object[]{token1,"Se esperaba TIPO DE DATO",linea,numtoken});
+                }else{ //A.S.
+                    if(!tablas.get(nTable).existKey(token0)){
+                        tablas.get(nTable).setColum(token0, token1);
+                    }else{
+                        error.addRow(new Object[]{token0,"Ya existe col. "+token0,linea,Integer.valueOf(numtoken)-1});
+                    }
+                }
             }
  
         }else if(token0.equals("(")&&!isLiteral(token1)){
@@ -932,6 +958,7 @@ public class Interfaz extends javax.swing.JFrame {
         }else if(token0.equalsIgnoreCase(";")){
              finSent(token0, token1, linea, numtoken, au_token, error);
             insClau=false;
+            clTable();
         }else{
             insertClause(token0,token1,linea,numtoken,au_token,error);
         }
@@ -941,19 +968,42 @@ public class Interfaz extends javax.swing.JFrame {
             error.addRow(new Object[]{token1,"Se esperaba INTO",linea,numtoken});
         }else if(token0.equalsIgnoreCase("into")&&!isLiteral(token1)){
             error.addRow(new Object[]{token1,"Se esperaba LITERAL",linea,numtoken});
-        }else if(isLiteral(token0)&&!token1.equalsIgnoreCase("values")){
-            error.addRow(new Object[]{token1,"Se esperaba VALUES",linea,numtoken});
+        }else if(isLiteral(token0)){
+            if(!token1.equalsIgnoreCase("values")){
+                error.addRow(new Object[]{token1,"Se esperaba VALUES",linea,numtoken});
+            }else{ // A.S.
+                if(tablas.containsKey(token0)){
+                    nTable = token0;
+                }else{
+                    error.addRow(new Object[]{token0,"E.Se.: No existe la tabla "+token0,linea,Integer.valueOf(numtoken)-1});
+                }
+            }
+            
         }else if(token0.equals("(")&&!isNumeric(token1)&&!isCadena(token1)){
             error.addRow(new Object[]{token1,"Se esperaba VALOR",linea,numtoken});
         }else if(token0.equals(",")&&!isNumeric(token1)&&!isCadena(token1)){
             error.addRow(new Object[]{token1,"Se esperaba VALOR",linea,numtoken}); 
-        }else if(token0.equals(")")&&!token1.equals(";")){
-            error.addRow(new Object[]{token1,"Se esperaba ;",linea,numtoken}); 
+        }else if(token0.equals(")")){
+            if(!token1.equals(";")){
+                error.addRow(new Object[]{token1,"Se esperaba ;",linea,numtoken}); 
+            }else{
+                if((tablas.get(nTable).index+1)<tablas.get(nTable).gsType()){
+                    error.addRow(new Object[]{token0,"E.Se.: Faltan datos en la insercción ",linea,Integer.valueOf(numtoken)-1});
+                }
+            }
+            
         }else if(token0.equalsIgnoreCase("values")&&!token1.equals("(")){
             error.addRow(new Object[]{token1,"Se esperaba (",linea,numtoken});
         }else if((isNumeric(token0)||isCadena(token0))){
             if ((au_token.equals("(")||au_token.equals(","))&&!token1.equals(")")&&!token1.equals(",")){
                 error.addRow(new Object[]{token1,"Se esperaba   ) | ,",linea,numtoken});
+            }else{
+                String extd = tablas.get(nTable).gType(tablas.get(nTable).index);
+                if(isCorrecType(token0, extd)){
+                    tablas.get(nTable).upind();
+                }else{
+                    error.addRow(new Object[]{token0,"E.Se: Se esperaba un dato de tipo "+extd,linea,Integer.valueOf(numtoken)-1});
+                }
             }
         }
     }
@@ -971,8 +1021,7 @@ public class Interfaz extends javax.swing.JFrame {
     public void selectClause(String token0,String token1,String linea,String numtoken,String au_token,DefaultTableModel error){
         
         if(token0.equalsIgnoreCase("select")){
-            if(!token1.equals("*")&&!isLiteral(token1)
-               &&!token1.equalsIgnoreCase("all")&&!token1.equalsIgnoreCase("distinct")&&!token1.equalsIgnoreCase("distinct")){
+            if(!token1.equals("*")&&!isLiteral(token1)&&!token1.equalsIgnoreCase("all")&&!token1.equalsIgnoreCase("distinct")){
                 error.addRow(new Object[]{token1,"Se esperaba IDENTIFICADOR",linea,numtoken});
             }
         }else if(token0.equals("*")&&!token1.equalsIgnoreCase("from")&&!token1.equals("/*")&&!token1.equals("//")){
@@ -1053,8 +1102,46 @@ public class Interfaz extends javax.swing.JFrame {
             error.addRow(new Object[]{token1,"Se esperaba  LITERAL",linea,numtoken});
         }
     }
-        
-   
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------    
+            ANALIZADOR SEMANTICO
+-------------------------------------------------------------------------------------------------------------------------------------------------------*/
+    public boolean isCorrecType(String value, String type){
+        boolean flag = false;
+        String numer[] = {"int","bigint","smallint","decimal","numeric","money","smallmoney","tiyint","float","real"};
+        String text[] = {"char","varchar","nchar","text","nvarchar","ntext"};
+        String dates [] = {"date","datetime","timestam","time"};
+        if(getTipo(numer, type)){
+            flag = isNumeric(value);
+        }else if (getTipo(text, type)){
+            flag = isCadena(value);
+        }else if(type.equalsIgnoreCase("boolean")){
+            if(value.equalsIgnoreCase("false")||value.equalsIgnoreCase("true")){
+                flag =true;
+            }
+        }else if(type.equalsIgnoreCase("bit")){
+            try {
+                byte bite = Byte.valueOf(value);
+                flag = true;
+            } catch (NumberFormatException e) {
+                flag =false;
+            }
+        } else if(getTipo(dates, type)){
+            flag = isDate(value)||isDate2(value);
+        }
+        return flag;
+    }
+    public boolean getTipo(String tipos[],String tipo){
+        boolean flag = false;
+        for (int i = 0; i < tipos.length; i++) {
+            flag = tipos[i].equalsIgnoreCase(tipo);
+            if(flag) break;
+        }
+        return flag;
+    }
+    public void clTable(){
+        tablas.get(nTable).index = 0;
+        nTable = "";
+    }
     
     private void btnLexicoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLexicoActionPerformed
         // TODO add your handling code here:
@@ -1066,7 +1153,8 @@ public class Interfaz extends javax.swing.JFrame {
         
         
         if(!txaEditor.getText().isEmpty()){
-
+            tablas.clear();
+            nTable = "";
             au_b=false;au_s="";au_c="";
             num_token = 1;num_var=1;num_numer=1;
             clearModel(modelo, error,variden,varnum);
