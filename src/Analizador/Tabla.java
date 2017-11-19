@@ -5,10 +5,29 @@
  */
 package Analizador;
 
+import java.util.ArrayList;
+import java.util.Hashtable;
+
 /**
  *
  * @author dark_
  */
 public class Tabla {
+    private Hashtable<String,String> DataType = new Hashtable<>();
+    private ArrayList<String> Type = new ArrayList<>();
     
+    int index = 0;
+    
+    public boolean existKey(String key){
+        return DataType.containsKey(key);
+    }
+    
+    public void setColum(String colum,String type){
+        DataType.put(colum,type);
+        Type.add(type);
+    }
+    
+    public void upind(){
+        index++;
+    }
 }
