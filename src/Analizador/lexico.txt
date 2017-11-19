@@ -1,0 +1,377 @@
+    
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------    
+            ANALIZADOR LEXICO
+-------------------------------------------------------------------------------------------------------------------------------------------------------*/
+    public boolean isPalabraReserv(String token){
+        boolean flag=false;
+        
+        for(String palabra : palabras_reservadas){
+            if(token.equalsIgnoreCase(palabra)){
+                flag=true;
+                break;
+            }
+        }
+        
+        return flag;
+    }
+    public boolean isCaracEsp(String token){
+        boolean flag=false;
+        
+        for(String car:carac_especial){
+            if(token.equalsIgnoreCase(car)){
+                flag=true;
+                break;
+            }
+        }
+        return flag;
+    }
+    public boolean isNumeric(String token){
+        try{
+            Integer.parseInt(token);
+            return true;
+        }catch(NumberFormatException w){
+            return false;
+        }
+    }          
+    public boolean isLiteral(String token){
+        boolean result=false;
+        expresion_regular= Pattern.compile(xr_literal);
+        mat = expresion_regular.matcher(token);
+        result = mat.matches()&&!isPalabraReserv(token)&&!isOperLogic(token)&&!isOperRela(token);
+        return result;
+    }    
+    public boolean isOperLogic(String token){
+        boolean flag = false;
+        
+        for(String car:opera_logico){
+            if(token.equalsIgnoreCase(car)){
+                flag=true;
+                break;
+            }
+        }
+        
+        return flag;
+    }
+    public boolean isOperRela(String token){
+        boolean flag = false;
+        
+        for(String car:opera_relac){
+            if(token.equalsIgnoreCase(car)){
+                flag=true;
+                break;
+            }
+        }
+        
+        return flag;
+    }
+    public boolean isOperMat(String token){
+        boolean flag =  false;
+        
+        for(String car:opera_mat){
+            if(token.equalsIgnoreCase(car)){
+                flag=true;
+                break;
+            }
+        }
+        
+        return flag;
+    }
+    public boolean isCadena(String token){
+        expresion_regular= Pattern.compile(xr_string);
+        mat = expresion_regular.matcher(token);
+        return mat.matches();
+    }
+    public boolean istipoDato(String token){
+        boolean flag=false;
+       
+        for (String tipos_dato : tipos_datos) {
+            if (token.equalsIgnoreCase(tipos_dato)) {
+                flag=true;
+                break;
+            }
+        }
+        
+        return flag;
+    }
+
+    
+    public int getDirTipoDato(String token){
+        int dir=0;
+        
+        for (int i =0;i<tipos_datos.length;i++){
+            
+            if(token.equalsIgnoreCase(tipos_datos[i])){
+                dir=(i+1);
+            }
+        }
+        
+        return dir;
+    }
+    public int getDirPalaReserv(String token){
+        int dir=0;
+        for (int i =0;i<palabras_reservadas.length;i++){
+            
+            if(token.equalsIgnoreCase(palabras_reservadas[i])){
+                dir=(i+1);
+            }
+        }
+        return dir;
+    }
+    public int getDirCarcEspec(String token){
+        int dir=0;
+        for (int i =0;i<carac_especial.length;i++){
+            
+            if(token.equalsIgnoreCase(carac_especial[i])){
+                dir=(i+1);
+            }
+        }
+        return dir;
+    }
+    public int getDirOperRelac(String token){
+        int dir=0;
+        for (int i =0;i<opera_relac.length;i++){
+            
+            if(token.equalsIgnoreCase(opera_relac[i])){
+                dir=(i+1);
+            }
+        }
+        return dir;
+    }
+    public int getDirOperaArit(String token){
+        int dir=0;
+        for (int i =0;i<opera_mat.length;i++){
+            
+            if(token.equalsIgnoreCase(opera_mat[i])){
+                dir=(i+1);
+            }
+        }
+        return dir;
+    }
+    public int getDirOperaLog(String token){
+        int dir=0;
+        for (int i =0;i<opera_logico.length;i++){
+            
+            if(token.equalsIgnoreCase(opera_logico[i])){
+                dir=(i+1);
+            }
+        }
+        return dir;
+    }
+        
+    public void setCadena(String token,DefaultTableModel modelo,DefaultTableModel error,DefaultTableModel tblVarIden, DefaultTableModel varnum){
+        if(isCadena(token)){
+            analiLexico(token, modelo, error, tblVarIden, varnum);
+        }else{
+            if(!au_b){
+                au_s+=token;
+                au_b=true;
+            }else{
+                au_s+=" "+token;
+                if(au_s.endsWith("\"")){
+                    au_b=false;
+                }
+            }
+        } 
+    }
+    public void setTokenAnali(String token,DefaultTableModel modelo,DefaultTableModel error,DefaultTableModel tblVarIden, DefaultTableModel varnum){
+        if(!isOperRela(token)){
+            if(!au_c.equals("")){
+                analiLexico(au_c, modelo, error, tblVarIden, varnum);
+                au_c="";
+            }
+            analiLexico(token, modelo, error, tblVarIden, varnum);
+        }else{
+            if(au_c.equals("")){
+                if(!token.equals("=")){
+                    au_c+=token;
+                }else{
+                    analiLexico(token, modelo, error, tblVarIden, varnum);
+                } 
+            }else if(!au_c.equals("")){
+                if(!token.equals("<")){
+                    au_c+=token;
+                    analiLexico(au_c, modelo, error, tblVarIden, varnum);
+                    au_c="";
+                }else{
+                    analiLexico(au_c, modelo, error, tblVarIden, varnum);
+                    au_c=token;
+                }
+            }
+        }
+    }
+    
+    public void clearModel(DefaultTableModel modelo,DefaultTableModel error,DefaultTableModel tblVarIden, DefaultTableModel varnum){
+        if(modelo.getRowCount()>0){
+                do{
+                    modelo.removeRow(modelo.getRowCount()-1);
+                }while(modelo.getRowCount()!=0);
+            }
+        if(error.getRowCount()>0){
+            do{
+                error.removeRow(error.getRowCount()-1);
+            }while(error.getRowCount()!=0);
+        }
+        
+        if(tblVarIden.getRowCount()>0){
+            do{
+               tblVarIden.removeRow(tblVarIden.getRowCount()-1);
+            }while(tblVarIden.getRowCount()!=0);
+        }
+        if(varnum.getRowCount()>0){
+            do{
+                varnum.removeRow(varnum.getRowCount()-1);
+            }while(varnum.getRowCount()!=0);
+        }
+    }
+    public void newTexto(){
+        lineas_text=txaEditor.getText().split("\n");
+        String [] texto = new String [lineas_text.length];
+        int size=0;
+        char [] arreglo = txaEditor.getText().toCharArray();
+
+        for (int i = 0; i < arreglo.length; i++) {
+            if(texto[size]==null){
+                texto[size]="";     
+             }
+            if(!isCaracEsp(String.valueOf(arreglo[i]))&&!isOperMat(String.valueOf(arreglo[i]))&&
+                !isOperRela(String.valueOf(arreglo[i]))&&!String.valueOf(arreglo[i]).equals("\n")){ 
+                
+                texto[size]+=arreglo[i];
+            }else if(isCaracEsp(String.valueOf(arreglo[i]))||isOperMat(String.valueOf(arreglo[i]))||
+                    isOperRela(String.valueOf(arreglo[i]))&&!String.valueOf(arreglo[i]).equals("\n")){  
+                texto[size]+=" "+arreglo[i]+" ";
+            }else if(String.valueOf(arreglo[i]).equals("\n")){
+                size++;
+            }
+
+        }
+        lineas_text=texto;
+            
+    }
+    public void tokenizador(DefaultTableModel modelo,DefaultTableModel error,DefaultTableModel tblVarIden, DefaultTableModel varnum){
+        
+        for (iter=0;iter<lineas_text.length;iter++) {
+            
+            String[] tokens = lineas_text[iter].split(" ");
+            for (String token : tokens) {
+                
+                if(!token.equals("")&&!token.startsWith("\"")&&!au_b){
+                    
+                    if(!au_s.equals("")){
+                        analiLexico(au_s, modelo, error, tblVarIden, varnum);
+                        
+                        au_s="";
+                    }
+                    if((token.equals("*")||token.equals("/"))&&(au_comen.equals(""))){
+                        au_comen=token;
+                    }else if(!token.equals("*")&&!token.equals("/")&&!au_comen.equals("")){
+                        setTokenAnali(au_comen, modelo, error, tblVarIden, varnum);
+                        setTokenAnali(token, modelo, error, tblVarIden, varnum);
+                        au_comen="";
+                    }else if((token.equals("*")||token.equals("/"))&&!au_comen.equals("")){
+                        if(token.equals("*")&&au_comen.equals("*")){
+                            setTokenAnali(au_comen, modelo, error, tblVarIden, varnum);
+                            setTokenAnali(token, modelo, error, tblVarIden, varnum); 
+                            au_comen="";
+                        }else{
+                            au_comen+=token;
+                            setTokenAnali(au_comen, modelo, error, tblVarIden, varnum);
+                            au_comen="";
+                        }
+                    }else{
+                        setTokenAnali(token, modelo, error, tblVarIden, varnum);
+                    }
+                    
+                    
+                }else if(!token.equals("")){
+                    setCadena(token, modelo, error, tblVarIden, varnum);
+                }
+            }
+            
+            if(!au_s.equals("")){
+                analiLexico(au_s, modelo, error, tblVarIden, varnum);
+                au_s="";
+            }
+            if(!au_c.equals("")){
+                analiLexico(au_c, modelo, error, tblVarIden, varnum);
+                au_c="";
+            }
+            
+            
+        }
+    }
+    public void analiLexico(String token,DefaultTableModel modelo,DefaultTableModel error,DefaultTableModel tblVarIden, DefaultTableModel varnum){
+        
+        if(istipoDato(token)){
+            modelo.addRow(new Object[]{token.toUpperCase(),"Tipo de Datos",(iter+1),num_token,"TD "+getDirTipoDato(token)});
+            num_token++;
+        }else if(isOperLogic(token)){
+            modelo.addRow(new Object[]{token.toUpperCase(),"Operador Logico",(iter+1),num_token,"OL "+getDirOperaLog(token)});
+            num_token++;
+        }else if(isPalabraReserv(token)){
+            modelo.addRow(new Object[]{token.toUpperCase(),"Palabra reservada",(iter+1),num_token,"PR "+getDirPalaReserv(token)});
+            num_token++;
+        }else if(isCaracEsp(token)){
+            modelo.addRow(new Object[]{token.toUpperCase(),"Caracter Especial",(iter+1),num_token,"CE "+getDirCarcEspec(token)});
+            num_token++;
+        }else if (isNumeric(token)){
+            modelo.addRow(new Object[]{token,"Es un valor numerico",(iter+1),num_token,"VN "+num_numer});
+            varnum.addRow(new Object[]{num_numer,token});
+            num_numer++;
+            num_token++;
+        }else if(!istipoDato(token)&&!isPalabraReserv(token)&&!isOperLogic(token)&&isLiteral(token)){
+            modelo.addRow(new Object[]{token.toUpperCase(),"Es una Literal",(iter+1),num_token,"VI "+num_var});
+            tblVarIden.addRow(new Object[]{num_var,token.toUpperCase()});
+            num_token++;
+            num_var++;
+        }else if(!istipoDato(token)&&!isPalabraReserv(token)&&!isLiteral(token)&&!isOperLogic(token)&&isCadena(token)){
+            modelo.addRow(new Object[]{token.toUpperCase(),"Cadena de Caracteres",(iter+1),num_token,"VI "+num_var});
+            tblVarIden.addRow(new Object[]{num_var,token.toUpperCase()});
+            num_var++;
+            num_token++;
+        }else if(isOperRela(token)){
+            modelo.addRow(new Object[]{token,"Operador Relacional",(iter+1),num_token,"OR "+getDirOperRelac(token)});
+            num_token++;
+        }else if(isOperMat(token)){
+            modelo.addRow(new Object[]{token,"Operador Matematico",(iter+1),num_token,"OM "+getDirOperaArit(token)});
+            num_token++;
+        }else{
+            modelo.addRow(new Object[]{token,"Error Lexico",(iter+1),num_token,"Tabla de Errores"});
+            error.addRow(new Object[]{token,"Error Lexico",(iter+1),num_token});
+            num_token++;
+        }
+
+
+    }
+    public void tablasAux(){
+        DefaultTableModel pala_reserv = (DefaultTableModel)tblPalabrasReserv.getModel();
+        DefaultTableModel tipo_dat    = (DefaultTableModel)tblTiposDatos.getModel();
+        DefaultTableModel car_spec    = (DefaultTableModel)tblCaracEsp.getModel();
+        DefaultTableModel ope_arit    = (DefaultTableModel)tblOperMat.getModel();
+        DefaultTableModel ope_log     = (DefaultTableModel)tblOperLog.getModel();
+        DefaultTableModel ope_rela    = (DefaultTableModel)tblOperRela.getModel();
+        
+        for(int i=0;i<palabras_reservadas.length;i++){
+            pala_reserv.addRow(new Object[]{(i+1),palabras_reservadas[i].toUpperCase()});
+        }
+        
+        for (int i = 0; i < tipos_datos.length; i++) {
+            tipo_dat.addRow(new Object[]{(i+1),tipos_datos[i].toUpperCase()});
+        }
+        
+        for (int i = 0; i < carac_especial.length; i++) {
+            car_spec.addRow(new Object[]{(i+1),carac_especial[i].toUpperCase()});
+        }
+        
+        for (int i = 0; i < opera_mat.length; i++) {
+            ope_arit.addRow(new Object[]{(i+1),opera_mat[i].toUpperCase()});
+        }
+        
+        for (int i = 0; i < opera_logico.length; i++) {
+            ope_log.addRow(new Object[]{(i+1),opera_logico[i].toUpperCase()});
+        }
+        
+        for (int i = 0; i < opera_relac.length; i++) {
+            ope_rela.addRow(new Object[]{(i+1),opera_relac[i].toUpperCase()});
+        }
+    }
